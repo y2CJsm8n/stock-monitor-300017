@@ -1,37 +1,31 @@
-import requests
+import yfinance as yf
 import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
 import os
-import time
 from datetime import datetime
 
 # ===== 配置区 =====
-STOCK_CODE = "300017"      # 网宿科技
-API_KEY = os.environ.get("ALPHA_VANTAGE_KEY")  # 从环境变量读取
-PRICE_HIGH = 17.35         # 突破线
-PRICE_LOW = 16.90          # 破位线
+STOCK_CODE = "300017.SZ"
+PRICE_HIGH = 17.35
+PRICE_LOW = 16.90
 
-# 邮件配置
 SMTP_SERVER = "smtp.qq.com"
 SMTP_PORT = 465
 SENDER_EMAIL = os.environ.get("SENDER_EMAIL")
-SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD")  # QQ邮箱用授权码
-RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL")    # 你的接收邮箱
+SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD")
+RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL")
 
 # ===== 获取股价 =====
 def get_stock_price():
-    url = f"https://www.alphavantage.co/query"
-    params = {
-        "function": "GLOBAL_QUOTE",
-        "symbol": f"{STOCK_CODE}.SZ",  # .SZ代表深交所
-        "apikey": API_KEY
-    }
     try:
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
-        price = float(data["Global Quote"]["05. price"])
-        return price
+        stock = yf.Ticker(STOCK_CODE)
+        data = stock.history(period="1d")
+        if data.empty:
+            print(f"[{datetime.now()}] 获取股价失败: 数据为空")
+            return None
+        price = data['Close'].iloc[-1]
+        return round(price, 2)
     except Exception as e:
         print(f"[{datetime.now()}] 获取股价失败: {e}")
         return None
@@ -67,7 +61,6 @@ def main():
 
     print(f"[{datetime.now()}] 当前股价: {price}")
 
-    # 状态记录文件，防止重复发送
     status_file = "last_status.txt"
     last_status = ""
     if os.path.exists(status_file):
@@ -86,7 +79,6 @@ def main():
     else:
         current_status = "normal"
 
-    # 记录本次状态
     with open(status_file, "w") as f:
         f.write(current_status)
 
