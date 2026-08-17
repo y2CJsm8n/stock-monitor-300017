@@ -11,18 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Debug - List all files
-        run: |
-          echo "=== 当前目录文件列表 ==="
-          ls -la
-          echo "=== .github/workflows 目录 ==="
-          ls -la .github/workflows/ || echo "目录不存在"
-      
-      - name: Debug - Show monitor.py content
-        run: |
-          echo "=== monitor.py 内容 ==="
-          cat monitor.py || echo "monitor.py 不存在"
-      
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
