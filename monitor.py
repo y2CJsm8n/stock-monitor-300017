@@ -4,6 +4,7 @@ from email.mime.text import MIMEText
 from email.header import Header
 import os
 from datetime import datetime
+import time
 
 STOCK_CODE = "300017"
 PRICE_HIGH = 17.35
@@ -15,18 +16,22 @@ SENDER_EMAIL = os.environ.get("SENDER_EMAIL")
 SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD")
 RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL")
 
-def get_stock_price():
-    try:
-        df = ak.stock_zh_a_spot_em()
-        stock = df[df['代码'] == STOCK_CODE]
-        if stock.empty:
-            print(f"[{datetime.now()}] 未找到股票代码: {STOCK_CODE}")
-            return None
-        price = float(stock['最新价'].iloc[0])
-        return round(price, 2)
-    except Exception as e:
-        print(f"[{datetime.now()}] 获取股价失败: {e}")
-        return None
+def get_stock_price(retry=3):
+    for i in range(retry):
+        try:
+            print(f"[{datetime.now()}] 尝试获取股价 (第 {i+1} 次)...")
+            df = ak.stock_zh_a_spot_em()
+            stock = df[df['代码'] == STOCK_CODE]
+            if stock.empty:
+                print(f"[{datetime.now()}] 未找到股票代码: {STOCK_CODE}")
+                return None
+            price = float(stock['最新价'].iloc[0])
+            return round(price, 2)
+        except Exception as e:
+            print(f"[{datetime.now()}] 获取股价失败 (尝试 {i+1}/{retry}): {e}")
+            if i < retry - 1:
+                time.sleep(3)
+    return None
 
 def send_alert(price, reason):
     subject = f"【股票提醒】{STOCK_CODE} 触发{reason}线"
