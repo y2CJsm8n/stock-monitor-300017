@@ -1,4 +1,4 @@
-import yfinance as yf
+import akshare as ak
 import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
@@ -6,7 +6,7 @@ import os
 from datetime import datetime
 
 # ===== 配置区 =====
-STOCK_CODE = "300017.SZ"
+STOCK_CODE = "300017"
 PRICE_HIGH = 17.35
 PRICE_LOW = 16.90
 
@@ -16,15 +16,15 @@ SENDER_EMAIL = os.environ.get("SENDER_EMAIL")
 SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD")
 RECEIVER_EMAIL = os.environ.get("RECEIVER_EMAIL")
 
-# ===== 获取股价 =====
+# ===== 获取股价（使用AKShare） =====
 def get_stock_price():
     try:
-        stock = yf.Ticker(STOCK_CODE)
-        data = stock.history(period="1d")
-        if data.empty:
-            print(f"[{datetime.now()}] 获取股价失败: 数据为空")
+        df = ak.stock_zh_a_spot_em()
+        stock = df[df['代码'] == STOCK_CODE]
+        if stock.empty:
+            print(f"[{datetime.now()}] 未找到股票代码: {STOCK_CODE}")
             return None
-        price = data['Close'].iloc[-1]
+        price = float(stock['最新价'].iloc[0])
         return round(price, 2)
     except Exception as e:
         print(f"[{datetime.now()}] 获取股价失败: {e}")
@@ -32,9 +32,9 @@ def get_stock_price():
 
 # ===== 发送邮件 =====
 def send_alert(price, reason):
-    subject = f"【股票提醒】300017 触发{reason}线"
+    subject = f"【股票提醒】{STOCK_CODE} 触发{reason}线"
     body = f"""
-    股票代码：300017（网宿科技）
+    股票代码：{STOCK_CODE}（网宿科技）
     当前价格：{price} 元
     触发条件：{reason}
     触发时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
