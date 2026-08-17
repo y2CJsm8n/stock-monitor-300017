@@ -1,12 +1,13 @@
-import yfinance as yf
+import requests
 import smtplib
 from email.mime.text import MIMEText
 from email.header import Header
 import os
 from datetime import datetime
 import time
+import re
 
-STOCK_CODE = "300017.SZ"
+STOCK_CODE = "300017"
 PRICE_HIGH = 17.35
 PRICE_LOW = 16.90
 
@@ -20,12 +21,28 @@ def get_stock_price(retry=3):
     for i in range(retry):
         try:
             print(f"[{datetime.now()}] 尝试获取股价 (第 {i+1} 次)...")
-            stock = yf.Ticker(STOCK_CODE)
-            data = stock.history(period="1d")
-            if data.empty:
-                print(f"[{datetime.now()}] 获取股价失败: 数据为空")
+            # 使用新浪财经 API
+            url = f"https://hq.sinajs.cn/list=sz{STOCK_CODE}"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
+            response = requests.get(url, headers=headers, timeout=10)
+            response.encoding = "gbk"
+            
+            content = response.text
+            if not content or "var hq_str" not in content:
+                print(f"[{datetime.now()}] 获取数据失败: 响应为空")
                 return None
-            price = data['Close'].iloc[-1]
+            
+            # 解析数据
+            data = content.split('"')[1] if '"' in content else content.split('=')[1].strip().strip('"')
+            parts = data.split(',')
+            
+            if len(parts) < 3:
+                print(f"[{datetime.now()}] 数据格式错误")
+                return None
+            
+            price = float(parts[3])  # 当前价格
             return round(price, 2)
         except Exception as e:
             print(f"[{datetime.now()}] 获取股价失败 (尝试 {i+1}/{retry}): {e}")
@@ -36,7 +53,7 @@ def get_stock_price(retry=3):
 def send_alert(price, reason):
     subject = f"【股票提醒】{STOCK_CODE} 触发{reason}线"
     body = f"""
-股票代码：300017（网宿科技）
+股票代码：{STOCK_CODE}（网宿科技）
 当前价格：{price} 元
 触发条件：{reason}
 触发时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
